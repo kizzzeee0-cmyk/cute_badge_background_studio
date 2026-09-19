@@ -1,0 +1,216 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Cute Badge Background Studio v1.0</title>
+  <link rel="stylesheet" href="./style.css" />
+</head>
+<body>
+  <div id="app" class="app-shell">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark">✦</div>
+        <div>
+          <strong>Cute Badge Background Studio</strong>
+          <span>293 × 164 썸네일 배경 · v1.0</span>
+        </div>
+      </div>
+      <div class="top-actions">
+        <button id="undoBtn" class="ghost" title="실행 취소 (Ctrl+Z)">↶ 실행취소</button>
+        <button id="redoBtn" class="ghost" title="다시 실행 (Ctrl+Y)">↷ 다시실행</button>
+        <button id="saveProjectBtn" class="ghost">프로젝트 저장</button>
+        <label class="button ghost file-button">프로젝트 열기<input id="openProjectInput" type="file" accept="application/json,.json" hidden /></label>
+        <button id="exportSvgBtn" class="ghost">SVG 저장</button>
+        <button id="exportPngBtn" class="primary">PNG 저장</button>
+      </div>
+    </header>
+
+    <main class="workspace">
+      <aside class="panel left-panel">
+        <section class="panel-section">
+          <h2>배경 프리셋</h2>
+          <div id="presetList" class="preset-grid"></div>
+        </section>
+
+        <section class="panel-section">
+          <div class="section-title-row"><h2>도형</h2><span class="hint">클릭하면 추가</span></div>
+          <div id="shapeList" class="asset-grid"></div>
+        </section>
+
+        <section class="panel-section">
+          <div class="section-title-row"><h2>스탬프</h2><span class="hint">장식 요소</span></div>
+          <div id="stampList" class="asset-grid"></div>
+        </section>
+
+        <section class="panel-section compact">
+          <h2>펜</h2>
+          <div class="segmented" id="toolModeGroup">
+            <button data-tool="select" class="active">선택</button>
+            <button data-tool="pen">점선 펜</button>
+          </div>
+          <div id="penSettings" class="tool-subpanel hidden">
+            <label>보정 방식
+              <select id="penCorrection">
+                <option value="smooth">부드러운 곡선 보정</option>
+                <option value="straight">직선 보정</option>
+                <option value="curve">강한 곡선 보정</option>
+              </select>
+            </label>
+            <div class="two-col">
+              <label>색상<input id="penColor" type="color" value="#6f6a9b" /></label>
+              <label>두께<input id="penWidth" type="number" min="1" max="24" value="4" /></label>
+            </div>
+            <div class="two-col">
+              <label>점 길이<input id="penDash" type="number" min="1" max="30" value="7" /></label>
+              <label>간격<input id="penGap" type="number" min="1" max="30" value="6" /></label>
+            </div>
+          </div>
+        </section>
+      </aside>
+
+      <section class="stage-area">
+        <div class="stage-toolbar">
+          <div class="zoom-controls">
+            <button id="zoomOutBtn" class="icon-btn">−</button>
+            <input id="zoomRange" type="range" min="75" max="300" value="200" step="25" />
+            <button id="zoomInBtn" class="icon-btn">＋</button>
+            <span id="zoomLabel">200%</span>
+          </div>
+          <label class="check-label"><input id="gridToggle" type="checkbox" /> 격자</label>
+          <label class="check-label"><input id="safeToggle" type="checkbox" checked /> 안전영역</label>
+          <label class="check-label"><input id="snapToggle" type="checkbox" /> 2px 스냅</label>
+          <button id="fitBtn" class="ghost mini">화면 맞춤</button>
+        </div>
+
+        <div id="stageViewport" class="stage-viewport">
+          <div id="stageWrap" class="stage-wrap">
+            <svg id="stage" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 293 164" width="293" height="164" aria-label="293x164 디자인 캔버스">
+              <defs id="svgDefs"></defs>
+              <rect id="canvasBackground" x="0" y="0" width="293" height="164" fill="#ffffff"/>
+              <g id="gridLayer" pointer-events="none"></g>
+              <g id="artLayer"></g>
+              <g id="selectionLayer" pointer-events="none"></g>
+              <g id="guideLayer" pointer-events="none"></g>
+              <path id="livePenPath" fill="none" stroke="#6f6a9b" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="7 6" opacity="0" pointer-events="none" />
+            </svg>
+          </div>
+        </div>
+
+        <div class="statusbar">
+          <span>실제 출력 크기 <b>293×164 px</b></span>
+          <span id="statusText">도형이나 스탬프를 추가해 시작하세요.</span>
+        </div>
+      </section>
+
+      <aside class="panel right-panel">
+        <section class="panel-section canvas-section">
+          <h2>캔버스</h2>
+          <div class="two-col">
+            <label>배경색<input id="canvasBgColor" type="color" value="#ffffff" /></label>
+            <label class="check-label inline-check"><input id="transparentBg" type="checkbox" /> 투명</label>
+          </div>
+        </section>
+
+        <section id="emptyInspector" class="empty-inspector">
+          <div class="empty-icon">✿</div>
+          <h3>오브젝트를 선택해 주세요</h3>
+          <p>도형, 스탬프, 점선 펜의 색상·크기·획·패턴을 여기서 편집할 수 있어요.</p>
+        </section>
+
+        <div id="inspector" class="hidden">
+          <section class="panel-section">
+            <div class="section-title-row"><h2>선택 오브젝트</h2><span id="selectedTypeBadge" class="badge"></span></div>
+            <div class="object-actions">
+              <button id="duplicateBtn" class="ghost mini">복제</button>
+              <button id="layerUpBtn" class="ghost mini">위로</button>
+              <button id="layerDownBtn" class="ghost mini">아래로</button>
+              <button id="deleteBtn" class="danger mini">삭제</button>
+            </div>
+          </section>
+
+          <section class="panel-section">
+            <h2>위치 · 크기</h2>
+            <div class="four-col">
+              <label>X<input id="posX" type="number" step="1" /></label>
+              <label>Y<input id="posY" type="number" step="1" /></label>
+              <label>W<input id="sizeW" type="number" min="1" step="1" /></label>
+              <label>H<input id="sizeH" type="number" min="1" step="1" /></label>
+            </div>
+            <label>회전 <span id="rotationValue" class="value-readout">0°</span>
+              <input id="rotation" type="range" min="-180" max="180" value="0" />
+            </label>
+            <div class="quick-align">
+              <button data-align="centerX" class="ghost mini">가로 중앙</button>
+              <button data-align="centerY" class="ghost mini">세로 중앙</button>
+              <button data-align="cover" class="ghost mini">캔버스 덮기</button>
+            </div>
+          </section>
+
+          <section id="fillSection" class="panel-section">
+            <h2>채우기</h2>
+            <label>채우기 방식
+              <select id="fillMode">
+                <option value="solid">단색</option>
+                <option value="linear">선형 그라데이션</option>
+                <option value="radial">원형 그라데이션</option>
+                <option value="pastel">파스텔 브러시 질감</option>
+              </select>
+            </label>
+            <div class="two-col">
+              <label>색상 A<input id="fillA" type="color" /></label>
+              <label>색상 B<input id="fillB" type="color" /></label>
+            </div>
+            <label id="gradientAngleRow">방향 <span id="gradientAngleValue" class="value-readout">0°</span>
+              <input id="gradientAngle" type="range" min="0" max="360" value="0" />
+            </label>
+            <div id="gradientRangeRow" class="two-col">
+              <label>시작 범위<input id="gradientStart" type="number" min="0" max="100" value="0" /></label>
+              <label>끝 범위<input id="gradientEnd" type="number" min="0" max="100" value="100" /></label>
+            </div>
+          </section>
+
+          <section id="strokeSection" class="panel-section">
+            <div class="section-title-row"><h2>다중 획</h2><button id="addStrokeBtn" class="ghost mini">＋ 획 추가</button></div>
+            <p class="small-copy">목록 위쪽이 가장 바깥쪽 획입니다. 드래그 대신 ▲▼ 버튼으로 순서를 바꿀 수 있어요.</p>
+            <div id="strokeList" class="stroke-list"></div>
+          </section>
+
+          <section id="effectsSection" class="panel-section">
+            <h2>포인트 효과</h2>
+            <label class="check-label"><input id="shadeEnabled" type="checkbox" /> 한쪽 어둡게</label>
+            <div id="shadeControls" class="tool-subpanel hidden">
+              <div class="two-col">
+                <label>색상<input id="shadeColor" type="color" value="#765f7f" /></label>
+                <label>강도<input id="shadeOpacity" type="number" min="0" max="100" value="18" /></label>
+              </div>
+              <label>방향 <span id="shadeAngleValue" class="value-readout">135°</span><input id="shadeAngle" type="range" min="0" max="360" value="135" /></label>
+            </div>
+
+            <label>내부 포인트 패턴
+              <select id="patternMode">
+                <option value="none">없음</option>
+                <option value="dots">작은 땡땡이</option>
+                <option value="stripes">사선 줄무늬</option>
+                <option value="grid">얇은 체크</option>
+                <option value="sparkles">미니 반짝이</option>
+              </select>
+            </label>
+            <div id="patternControls" class="tool-subpanel hidden">
+              <div class="two-col">
+                <label>색상<input id="patternColor" type="color" value="#6a5d7a" /></label>
+                <label>투명도<input id="patternOpacity" type="number" min="0" max="100" value="20" /></label>
+              </div>
+              <label>크기/간격 <span id="patternScaleValue" class="value-readout">10</span><input id="patternScale" type="range" min="4" max="24" value="10" /></label>
+            </div>
+          </section>
+        </div>
+      </aside>
+    </main>
+
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  </div>
+
+  <script src="./app.js"></script>
+</body>
+</html>
