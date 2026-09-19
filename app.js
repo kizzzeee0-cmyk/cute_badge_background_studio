@@ -161,6 +161,8 @@
     out.w=Math.max(1,Number(out.w)||32); out.h=Math.max(1,Number(out.h)||32);
     if(out.kind==='image'){
       out.src=out.src||'';
+      out.strokes=Array.isArray(out.strokes)?out.strokes.map(s=>({color:s.color||'#ffffff',width:Math.max(0,+s.width||0)})):DEFAULT_STROKES();
+      out.strokeFx={softness:0, texture:0, ...out.strokeFx};
       out.shadow={enabled:false,color:'#6c6175',opacity:18,x:2,y:3,blur:2,...out.shadow};
       return out;
     }
@@ -215,7 +217,7 @@
     fr.onload = () => {
       const img = new Image();
       img.onload = () => {
-        const it = {id:uid(), kind:'image', type:'image', x:66, y:28, w:120, h:90, rotation:0, src:fr.result, shadow:{enabled:false,color:'#6c6175',opacity:18,x:2,y:3,blur:2}};
+        const it = {id:uid(), kind:'image', type:'image', x:66, y:28, w:120, h:90, rotation:0, src:fr.result, strokes:DEFAULT_STROKES(), strokeFx:{softness:0, texture:0}, shadow:{enabled:false,color:'#6c6175',opacity:18,x:2,y:3,blur:2}};
         const ratio = img.naturalWidth && img.naturalHeight ? img.naturalWidth/img.naturalHeight : 1;
         if(ratio>=1){ it.w=120; it.h=Math.max(20, 120/ratio); }
         else { it.h=90; it.w=Math.max(20, 90*ratio); }
@@ -486,6 +488,20 @@
     }
   }
 
+  function appendImageOutlineBands(g,item){
+    const strokes=item.strokes||[];
+    const strokeFilter=createStrokeFxFilter(item);
+    for(let i=0;i<strokes.length;i++){
+      let cumulative=0;
+      for(let j=i;j<strokes.length;j++) cumulative+=Math.max(0,+strokes[j].width||0);
+      const sw=cumulative*2;
+      if(sw<=0) continue;
+      const rect=svgEl('rect',{x:0,y:0,width:item.w,height:item.h,fill:'none',stroke:strokes[i].color,'stroke-width':sw,'stroke-linejoin':'round','vector-effect':'non-scaling-stroke'});
+      if(strokeFilter) rect.setAttribute('filter',strokeFilter);
+      g.append(rect);
+    }
+  }
+
 
   function renderAccentPaint(g,item,d){
     const paint=item.accentPaint;
@@ -526,7 +542,9 @@
         const g=svgEl('g',{'data-id':item.id,transform:`translate(${item.x} ${item.y}) rotate(${item.rotation||0} ${item.w/2} ${item.h/2})`});
         const img=svgEl('image',{href:item.src,x:0,y:0,width:item.w,height:item.h,preserveAspectRatio:'none'});
         const imgShadow=createImageShadowFilter(item); if(imgShadow) img.setAttribute('filter',imgShadow);
-        g.append(img); artLayer.append(g); continue;
+        appendImageOutlineBands(g,item);
+        g.append(img);
+        artLayer.append(g); continue;
       }
 
       const g=svgEl('g',{'data-id':item.id,transform:`translate(${item.x} ${item.y}) rotate(${item.rotation||0} ${item.w/2} ${item.h/2}) scale(${item.w/100} ${item.h/100})`});
@@ -673,7 +691,7 @@
     $('rotation').value=it.rotation||0; $('rotationValue').textContent=Math.round((it.rotation||0)*10)/10+'°';
 
     const shapeLike=it.kind==='shape'||it.kind==='stamp';
-    $('fillSection').classList.toggle('hidden',!shapeLike); $('strokeSection').classList.toggle('hidden',!shapeLike); $('effectsSection').classList.toggle('hidden',!shapeLike);
+    $('fillSection').classList.toggle('hidden',!shapeLike); $('strokeSection').classList.toggle('hidden',!(shapeLike||it.kind==='image')); $('effectsSection').classList.toggle('hidden',!shapeLike);
     $('penInspectorSection').classList.toggle('hidden',it.kind!=='pen');
     $('lineStampSection').classList.toggle('hidden',!(it.kind==='stamp'&&LINE_STAMPS.has(it.type)));
     $('imageShadowSection').classList.toggle('hidden',it.kind!=='image');
@@ -691,6 +709,7 @@
       $('imageShadowAngle').value=Number.isFinite(ang)?ang:56;
       $('imageShadowDistance').value=dist.toFixed(1);
       $('imageShadowBlur').value=it.shadow?.blur ?? 4;
+      renderStrokeList(it);
       return;
     }
 
