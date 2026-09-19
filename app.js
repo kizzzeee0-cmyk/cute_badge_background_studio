@@ -409,21 +409,35 @@
     f.append(svgEl('feGaussianBlur',{in:'SourceGraphic',stdDeviation:(+item.glow.blur||0).toFixed(2),result:'blur'}));
     addDef(f); return `url(#${id})`;
   }
-  function createPatternEdgeMask(item){
+  function createPatternDirectionalMask(item, mode='edge'){
     const dir=item.pattern?.blurDir||'none', span=+item.pattern?.blurSpan||0;
     if(dir==='none' || !(+item.pattern?.blur>0) || span<=0) return null;
-    const id='pmask_'+item.id;
-    const frac=v=>Math.max(0,Math.min(1,v));
+    const id=(mode==='edge'?'pmask_edge_':'pmask_base_')+item.id;
+    const gId=id+'_g';
     const m=svgEl('mask',{id,maskUnits:'userSpaceOnUse',maskContentUnits:'userSpaceOnUse'});
-    m.append(svgEl('rect',{x:item.pattern.x,y:item.pattern.y,width:item.pattern.w,height:item.pattern.h,fill:'black'}));
-    const g=svgEl('linearGradient',{id:id+'_g'});
-    let rectArgs={x:item.pattern.x,y:item.pattern.y,width:item.pattern.w,height:item.pattern.h,fill:`url(#${id}_g)`};
-    if(dir==='left'){ g.setAttribute('x1','0%'); g.setAttribute('y1','0%'); g.setAttribute('x2','100%'); g.setAttribute('y2','0%'); const s=frac(span/Math.max(1,item.pattern.w)); g.append(svgEl('stop',{offset:'0%','stop-color':'white'})); g.append(svgEl('stop',{offset:(s*100)+'%','stop-color':'black'})); g.append(svgEl('stop',{offset:'100%','stop-color':'black'})); }
-    if(dir==='right'){ g.setAttribute('x1','100%'); g.setAttribute('y1','0%'); g.setAttribute('x2','0%'); g.setAttribute('y2','0%'); const s=frac(span/Math.max(1,item.pattern.w)); g.append(svgEl('stop',{offset:'0%','stop-color':'white'})); g.append(svgEl('stop',{offset:(s*100)+'%','stop-color':'black'})); g.append(svgEl('stop',{offset:'100%','stop-color':'black'})); }
-    if(dir==='top'){ g.setAttribute('x1','0%'); g.setAttribute('y1','0%'); g.setAttribute('x2','0%'); g.setAttribute('y2','100%'); const s=frac(span/Math.max(1,item.pattern.h)); g.append(svgEl('stop',{offset:'0%','stop-color':'white'})); g.append(svgEl('stop',{offset:(s*100)+'%','stop-color':'black'})); g.append(svgEl('stop',{offset:'100%','stop-color':'black'})); }
-    if(dir==='bottom'){ g.setAttribute('x1','0%'); g.setAttribute('y1','100%'); g.setAttribute('x2','0%'); g.setAttribute('y2','0%'); const s=frac(span/Math.max(1,item.pattern.h)); g.append(svgEl('stop',{offset:'0%','stop-color':'white'})); g.append(svgEl('stop',{offset:(s*100)+'%','stop-color':'black'})); g.append(svgEl('stop',{offset:'100%','stop-color':'black'})); }
-    addDef(g); m.append(svgEl('rect',rectArgs)); addDef(m); return `url(#${id})`;
+    const g=svgEl('linearGradient',{id:gId,gradientUnits:'objectBoundingBox'});
+    const w=Math.max(1,+item.pattern.w||1), h=Math.max(1,+item.pattern.h||1);
+    const frac=Math.max(.001,Math.min(.999, span / ((dir==='left'||dir==='right')?w:h)));
+    if(dir==='left'){ g.setAttribute('x1','0%');g.setAttribute('y1','0%');g.setAttribute('x2','100%');g.setAttribute('y2','0%'); }
+    if(dir==='right'){ g.setAttribute('x1','100%');g.setAttribute('y1','0%');g.setAttribute('x2','0%');g.setAttribute('y2','0%'); }
+    if(dir==='top'){ g.setAttribute('x1','0%');g.setAttribute('y1','0%');g.setAttribute('x2','0%');g.setAttribute('y2','100%'); }
+    if(dir==='bottom'){ g.setAttribute('x1','0%');g.setAttribute('y1','100%');g.setAttribute('x2','0%');g.setAttribute('y2','0%'); }
+    const pct=(frac*100).toFixed(2)+'%';
+    if(mode==='edge'){
+      g.append(svgEl('stop',{offset:'0%','stop-color':'white','stop-opacity':'1'}));
+      g.append(svgEl('stop',{offset:pct,'stop-color':'black','stop-opacity':'0'}));
+      g.append(svgEl('stop',{offset:'100%','stop-color':'black','stop-opacity':'0'}));
+    }else{
+      g.append(svgEl('stop',{offset:'0%','stop-color':'black','stop-opacity':'0'}));
+      g.append(svgEl('stop',{offset:pct,'stop-color':'white','stop-opacity':'1'}));
+      g.append(svgEl('stop',{offset:'100%','stop-color':'white','stop-opacity':'1'}));
+    }
+    addDef(g);
+    m.append(svgEl('rect',{x:item.pattern.x,y:item.pattern.y,width:item.pattern.w,height:item.pattern.h,fill:`url(#${gId})`}));
+    addDef(m); return `url(#${id})`;
   }
+  function createPatternEdgeMask(item){ return createPatternDirectionalMask(item,'edge'); }
+  function createPatternBaseFadeMask(item){ return createPatternDirectionalMask(item,'base'); }
   function createStrokeFxFilter(item){
     const soft = +item.strokeFx?.softness || 0;
     const tex = +item.strokeFx?.texture || 0;
@@ -548,14 +562,19 @@
             const clipId='clip_'+item.id;
             const cp=svgEl('clipPath',{id:clipId,clipPathUnits:'userSpaceOnUse'}); cp.append(svgEl('path',{d})); addDef(cp);
             const pg=svgEl('g',{'clip-path':`url(#${clipId})`});
+            const blurActive=+item.pattern.blur>0 && item.pattern.blurDir!=='none';
             const rect=svgEl('rect',{x:item.pattern.x,y:item.pattern.y,width:item.pattern.w,height:item.pattern.h,fill:patt});
+            if(blurActive){
+              const baseMask=createPatternBaseFadeMask(item);
+              if(baseMask) rect.setAttribute('mask',baseMask);
+            }
             pg.append(rect);
-            if(+item.pattern.blur>0 && item.pattern.blurDir!=='none'){
+            if(blurActive){
               const blurCopy=svgEl('rect',{x:item.pattern.x,y:item.pattern.y,width:item.pattern.w,height:item.pattern.h,fill:patt});
-              const patBlur = createSimpleBlur('pblur_'+item.id, item.pattern.blur);
-              const mask = createPatternEdgeMask(item);
+              const patBlur = createSimpleBlur('pblur_'+item.id, Math.max(.15,+item.pattern.blur));
+              const edgeMask = createPatternEdgeMask(item);
               if(patBlur) blurCopy.setAttribute('filter',patBlur);
-              if(mask) blurCopy.setAttribute('mask',mask);
+              if(edgeMask) blurCopy.setAttribute('mask',edgeMask);
               pg.append(blurCopy);
             }
             g.append(pg);
@@ -1021,8 +1040,8 @@
   }
   function saveProject(){
     captureCurrentPage();
-    const data={app:'Cute Badge Background Studio',version:'1.6',canvas:{width:W,height:H},pages,activePageIndex,ui:{grid:state.grid,safe:state.safe,snap:state.snap}};
-    downloadBlob(new Blob([JSON.stringify(data,null,2)],{type:'application/json;charset=utf-8'}),'cute-badge-project-v1.6.json');
+    const data={app:'Cute Badge Background Studio',version:'1.7',canvas:{width:W,height:H},pages,activePageIndex,ui:{grid:state.grid,safe:state.safe,snap:state.snap}};
+    downloadBlob(new Blob([JSON.stringify(data,null,2)],{type:'application/json;charset=utf-8'}),'cute-badge-project-v1.7.json');
   }
   function openProject(file){
     const r=new FileReader();r.onload=()=>{try{const d=JSON.parse(r.result);
