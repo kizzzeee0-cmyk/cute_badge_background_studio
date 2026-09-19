@@ -2,18 +2,20 @@
 <html lang="ko">
 <head>
   <meta charset="utf-8" />
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Cute Badge Background Studio v1.0</title>
+  <meta name="color-scheme" content="light" />
+  <title>Cute Badge Background Studio v1.1</title>
   <link rel="stylesheet" href="./style.css" />
 </head>
 <body>
   <div id="app" class="app-shell">
     <header class="topbar">
       <div class="brand">
-        <div class="brand-mark">✦</div>
+        <div class="brand-mark" aria-hidden="true">✦</div>
         <div>
           <strong>Cute Badge Background Studio</strong>
-          <span>293 × 164 썸네일 배경 · v1.0</span>
+          <span>293 × 164 썸네일 배경 · v1.1</span>
         </div>
       </div>
       <div class="top-actions">
@@ -29,22 +31,45 @@
     <main class="workspace">
       <aside class="panel left-panel">
         <section class="panel-section">
-          <h2>배경 프리셋</h2>
+          <div class="section-title-row">
+            <h2>배경 프리셋</h2>
+            <span class="hint">한국어 이름·색상표 수정</span>
+          </div>
           <div id="presetList" class="preset-grid"></div>
         </section>
 
         <section class="panel-section">
-          <div class="section-title-row"><h2>도형</h2><span class="hint">클릭하면 추가</span></div>
+          <div class="section-title-row"><h2>도형</h2><span class="hint">클릭하면 중앙에 추가</span></div>
+          <p class="small-copy no-top">선택 후 미리보기의 손잡이를 끌어서 크기를 바로 조절할 수 있어요.</p>
           <div id="shapeList" class="asset-grid"></div>
         </section>
 
         <section class="panel-section">
-          <div class="section-title-row"><h2>스탬프</h2><span class="hint">장식 요소</span></div>
+          <div class="section-title-row"><h2>스탬프</h2><span id="stampToolBadge" class="badge hidden">찍기 모드</span></div>
+          <p class="small-copy no-top">스탬프를 먼저 고르고 아래에서 색·획·크기를 정한 뒤, 미리보기에서 원하는 곳을 클릭하세요.</p>
           <div id="stampList" class="asset-grid"></div>
+          <div id="stampSettings" class="stamp-settings hidden">
+            <div class="stamp-tool-head">
+              <strong id="activeStampName">하트</strong>
+              <button id="exitStampToolBtn" class="ghost mini">선택 모드로</button>
+            </div>
+            <div class="two-col">
+              <label>스탬프 색<input id="stampFillColor" type="color" value="#fff7fb" /></label>
+              <label>외곽선 색<input id="stampStrokeColor" type="color" value="#8f7894" /></label>
+            </div>
+            <div class="two-col">
+              <label>외곽선 두께<input id="stampStrokeWidth" type="number" min="0" max="16" step="0.5" value="2" /></label>
+              <label>크기<input id="stampSize" type="number" min="6" max="120" step="1" value="26" /></label>
+            </div>
+            <label>회전 <span id="stampRotationValue" class="value-readout">0°</span>
+              <input id="stampRotation" type="range" min="-180" max="180" step="1" value="0" />
+            </label>
+            <p class="tool-tip">미리보기에서 클릭할 때마다 같은 설정으로 반복해서 찍힙니다. ESC를 누르면 선택 모드로 돌아갑니다.</p>
+          </div>
         </section>
 
         <section class="panel-section compact">
-          <h2>펜</h2>
+          <h2>그리기 도구</h2>
           <div class="segmented" id="toolModeGroup">
             <button data-tool="select" class="active">선택</button>
             <button data-tool="pen">점선 펜</button>
@@ -72,13 +97,13 @@
       <section class="stage-area">
         <div class="stage-toolbar">
           <div class="zoom-controls">
-            <button id="zoomOutBtn" class="icon-btn">−</button>
+            <button id="zoomOutBtn" class="icon-btn" aria-label="축소">−</button>
             <input id="zoomRange" type="range" min="75" max="300" value="200" step="25" />
-            <button id="zoomInBtn" class="icon-btn">＋</button>
+            <button id="zoomInBtn" class="icon-btn" aria-label="확대">＋</button>
             <span id="zoomLabel">200%</span>
           </div>
           <label class="check-label"><input id="gridToggle" type="checkbox" /> 격자</label>
-          <label class="check-label"><input id="safeToggle" type="checkbox" checked /> 안전영역</label>
+          <label class="check-label" title="편집 보조선이며 저장 파일에는 포함되지 않습니다."><input id="safeToggle" type="checkbox" /> 안전영역 안내선</label>
           <label class="check-label"><input id="snapToggle" type="checkbox" /> 2px 스냅</label>
           <button id="fitBtn" class="ghost mini">화면 맞춤</button>
         </div>
@@ -90,7 +115,8 @@
               <rect id="canvasBackground" x="0" y="0" width="293" height="164" fill="#ffffff"/>
               <g id="gridLayer" pointer-events="none"></g>
               <g id="artLayer"></g>
-              <g id="selectionLayer" pointer-events="none"></g>
+              <g id="stampPreviewLayer" pointer-events="none"></g>
+              <g id="selectionLayer"></g>
               <g id="guideLayer" pointer-events="none"></g>
               <path id="livePenPath" fill="none" stroke="#6f6a9b" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="7 6" opacity="0" pointer-events="none" />
             </svg>
@@ -99,7 +125,7 @@
 
         <div class="statusbar">
           <span>실제 출력 크기 <b>293×164 px</b></span>
-          <span id="statusText">도형이나 스탬프를 추가해 시작하세요.</span>
+          <span id="statusText">도형을 추가하거나 스탬프를 골라 시작하세요.</span>
         </div>
       </section>
 
@@ -115,7 +141,7 @@
         <section id="emptyInspector" class="empty-inspector">
           <div class="empty-icon">✿</div>
           <h3>오브젝트를 선택해 주세요</h3>
-          <p>도형, 스탬프, 점선 펜의 색상·크기·획·패턴을 여기서 편집할 수 있어요.</p>
+          <p>크기는 미리보기의 8개 손잡이로 바로 조절합니다. 위쪽 원형 손잡이는 회전입니다.</p>
         </section>
 
         <div id="inspector" class="hidden">
@@ -130,13 +156,12 @@
           </section>
 
           <section class="panel-section">
-            <h2>위치 · 크기</h2>
-            <div class="four-col">
+            <h2>위치 · 회전</h2>
+            <div class="two-col">
               <label>X<input id="posX" type="number" step="1" /></label>
               <label>Y<input id="posY" type="number" step="1" /></label>
-              <label>W<input id="sizeW" type="number" min="1" step="1" /></label>
-              <label>H<input id="sizeH" type="number" min="1" step="1" /></label>
             </div>
+            <div class="size-readout" id="sizeReadout">크기 0 × 0</div>
             <label>회전 <span id="rotationValue" class="value-readout">0°</span>
               <input id="rotation" type="range" min="-180" max="180" value="0" />
             </label>
@@ -145,6 +170,7 @@
               <button data-align="centerY" class="ghost mini">세로 중앙</button>
               <button data-align="cover" class="ghost mini">캔버스 덮기</button>
             </div>
+            <p class="small-copy">크기 조절은 미리보기에서 직접 하세요. 모서리 손잡이를 드래그하고 Shift를 누르면 원래 비율을 유지합니다.</p>
           </section>
 
           <section id="fillSection" class="panel-section">
@@ -154,7 +180,7 @@
                 <option value="solid">단색</option>
                 <option value="linear">선형 그라데이션</option>
                 <option value="radial">원형 그라데이션</option>
-                <option value="pastel">파스텔 브러시 질감</option>
+                <option value="pastel">파스텔 붓 질감</option>
               </select>
             </label>
             <div class="two-col">
@@ -172,8 +198,28 @@
 
           <section id="strokeSection" class="panel-section">
             <div class="section-title-row"><h2>다중 획</h2><button id="addStrokeBtn" class="ghost mini">＋ 획 추가</button></div>
-            <p class="small-copy">목록 위쪽이 가장 바깥쪽 획입니다. 드래그 대신 ▲▼ 버튼으로 순서를 바꿀 수 있어요.</p>
+            <p class="small-copy">목록의 위쪽이 가장 바깥쪽입니다. 각 행의 두께는 실제로 보이는 띠의 두께이며, 색 변경이 즉시 미리보기에 반영됩니다.</p>
             <div id="strokeList" class="stroke-list"></div>
+          </section>
+
+          <section id="lineStampSection" class="panel-section hidden">
+            <h2>선 스탬프</h2>
+            <div class="two-col">
+              <label>선 색<input id="lineColor" type="color" /></label>
+              <label>선 두께<input id="lineWidth" type="number" min="0.5" max="18" step="0.5" /></label>
+            </div>
+          </section>
+
+          <section id="penInspectorSection" class="panel-section hidden">
+            <h2>점선 펜 스타일</h2>
+            <div class="two-col">
+              <label>색상<input id="selectedPenColor" type="color" /></label>
+              <label>두께<input id="selectedPenWidth" type="number" min="1" max="24" step="0.5" /></label>
+            </div>
+            <div class="two-col">
+              <label>점 길이<input id="selectedPenDash" type="number" min="1" max="30" /></label>
+              <label>간격<input id="selectedPenGap" type="number" min="1" max="30" /></label>
+            </div>
           </section>
 
           <section id="effectsSection" class="panel-section">
@@ -194,6 +240,8 @@
                 <option value="stripes">사선 줄무늬</option>
                 <option value="grid">얇은 체크</option>
                 <option value="sparkles">미니 반짝이</option>
+                <option value="tinyhearts">미니 하트</option>
+                <option value="confetti">작은 색종이 선</option>
               </select>
             </label>
             <div id="patternControls" class="tool-subpanel hidden">
@@ -202,6 +250,32 @@
                 <label>투명도<input id="patternOpacity" type="number" min="0" max="100" value="20" /></label>
               </div>
               <label>크기/간격 <span id="patternScaleValue" class="value-readout">10</span><input id="patternScale" type="range" min="4" max="24" value="10" /></label>
+            </div>
+
+            <label class="check-label effect-check"><input id="innerLineEnabled" type="checkbox" /> 안쪽 스티치 / 점선 테두리</label>
+            <div id="innerLineControls" class="tool-subpanel hidden">
+              <div class="two-col">
+                <label>색상<input id="innerLineColor" type="color" value="#ffffff" /></label>
+                <label>두께<input id="innerLineWidth" type="number" min="0.5" max="8" step="0.5" value="1.5" /></label>
+              </div>
+              <div class="three-col">
+                <label>점<input id="innerLineDash" type="number" min="1" max="20" value="5" /></label>
+                <label>간격<input id="innerLineGap" type="number" min="1" max="20" value="4" /></label>
+                <label>안쪽<input id="innerLineInset" type="number" min="2" max="22" value="6" /></label>
+              </div>
+            </div>
+
+            <label class="check-label effect-check"><input id="shadowEnabled" type="checkbox" /> 부드러운 그림자</label>
+            <div id="shadowControls" class="tool-subpanel hidden">
+              <div class="two-col">
+                <label>색상<input id="shadowColor" type="color" value="#6c6175" /></label>
+                <label>투명도<input id="shadowOpacity" type="number" min="0" max="100" value="18" /></label>
+              </div>
+              <div class="three-col">
+                <label>X<input id="shadowX" type="number" min="-20" max="20" step="0.5" value="2" /></label>
+                <label>Y<input id="shadowY" type="number" min="-20" max="20" step="0.5" value="3" /></label>
+                <label>흐림<input id="shadowBlur" type="number" min="0" max="12" step="0.5" value="2" /></label>
+              </div>
             </div>
           </section>
         </div>
