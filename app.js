@@ -58,7 +58,7 @@
   let activePageIndex = 0;
 
   let history = [], historyIndex = -1, restoring = false;
-  let gesture = null, pen = null, paintStroke = null, toastTimer = null, lastPointer = null;
+  let gesture = null, pen = null, drawStroke = null, paintStroke = null, toastTimer = null, lastPointer = null;
 
   function uid(){ return 'i_' + Math.random().toString(36).slice(2,10); }
   function clone(v){ return JSON.parse(JSON.stringify(v)); }
@@ -159,6 +159,13 @@
     const out={...it};
     out.rotation=Number(out.rotation)||0;
     out.w=Math.max(1,Number(out.w)||32); out.h=Math.max(1,Number(out.h)||32);
+    if(out.kind==='draw'){
+      out.d=out.d||''; out.color=out.color||'#6f6a9b'; out.width=Math.max(0.1,+out.width||4);
+      out.parentId=out.parentId||null;
+      out.strokes=Array.isArray(out.strokes)?out.strokes.map(s=>({color:s.color||'#ffffff',width:Math.max(0,+s.width||0)})):DEFAULT_STROKES();
+      out.strokeFx={softness:0, texture:0, ...out.strokeFx};
+      return out;
+    }
     if(out.kind==='image'){
       out.src=out.src||'';
       out.strokes=Array.isArray(out.strokes)?out.strokes.map(s=>({color:s.color||'#ffffff',width:Math.max(0,+s.width||0)})):DEFAULT_STROKES();
@@ -547,6 +554,14 @@
         artLayer.append(g); continue;
       }
 
+      if(item.kind==='draw'){
+        const g=svgEl('g',{'data-id':item.id,transform:`translate(${item.x} ${item.y}) scale(${item.w/100} ${item.h/100})`});
+        g.style.cursor=state.tool==='select'?'move':'crosshair';
+        appendOutlineBands(g,item.d,{...item,lineWidth:item.width},true);
+        const path=svgEl('path',{d:item.d,fill:'none',stroke:item.color,'stroke-width':item.width,'stroke-linecap':'round','stroke-linejoin':'round','vector-effect':'non-scaling-stroke'});
+        g.append(path); artLayer.append(g); continue;
+      }
+
       const g=svgEl('g',{'data-id':item.id,transform:`translate(${item.x} ${item.y}) rotate(${item.rotation||0} ${item.w/2} ${item.h/2}) scale(${item.w/100} ${item.h/100})`});
       g.style.cursor=state.tool==='select'?'move':'crosshair';
       if(item.kind==='pen'){
@@ -685,19 +700,23 @@
   function syncInspector(){
     const it=selected();
     $('emptyInspector').classList.toggle('hidden',!!it); $('inspector').classList.toggle('hidden',!it); if(!it) return;
-    $('selectedTypeBadge').textContent=it.kind==='shape'?'도형':it.kind==='stamp'?'스탬프':it.kind==='image'?'이미지':'점선 펜';
+    $('selectedTypeBadge').textContent=it.kind==='shape'?'도형':it.kind==='stamp'?'스탬프':it.kind==='image'?'이미지':it.kind==='draw'?'그림':'점선 펜';
     $('posX').value=(+it.x).toFixed(1).replace('.0',''); $('posY').value=(+it.y).toFixed(1).replace('.0','');
     $('sizeReadout').textContent=`크기 ${(+it.w).toFixed(1).replace('.0','')} × ${(+it.h).toFixed(1).replace('.0','')}`;
     $('rotation').value=it.rotation||0; $('rotationValue').textContent=Math.round((it.rotation||0)*10)/10+'°';
 
     const shapeLike=it.kind==='shape'||it.kind==='stamp';
-    $('fillSection').classList.toggle('hidden',!shapeLike); $('strokeSection').classList.toggle('hidden',!(shapeLike||it.kind==='image')); $('effectsSection').classList.toggle('hidden',!shapeLike);
+    $('fillSection').classList.toggle('hidden',!shapeLike); $('strokeSection').classList.toggle('hidden',!(shapeLike||it.kind==='image'||it.kind==='draw')); $('effectsSection').classList.toggle('hidden',!shapeLike);
     $('penInspectorSection').classList.toggle('hidden',it.kind!=='pen');
+    $('drawInspectorSection').classList.toggle('hidden',it.kind!=='draw');
     $('lineStampSection').classList.toggle('hidden',!(it.kind==='stamp'&&LINE_STAMPS.has(it.type)));
     $('imageShadowSection').classList.toggle('hidden',it.kind!=='image');
 
     if(it.kind==='pen'){
       $('selectedPenColor').value=it.color; $('selectedPenWidth').value=it.width; $('selectedPenDash').value=it.dash; $('selectedPenGap').value=it.gap; return;
+    }
+    if(it.kind==='draw'){
+      $('selectedDrawColor').value=it.color; $('selectedDrawWidth').value=it.width; renderStrokeList(it); return;
     }
     if(it.kind==='image'){
       $('imageShadowEnabled').checked=!!it.shadow?.enabled;
@@ -747,7 +766,7 @@
 
   function updateToolButtons(){
     document.querySelectorAll('#toolModeGroup button').forEach(b=>b.classList.toggle('active',b.dataset.tool===state.tool));
-    $('penSettings').classList.toggle('hidden',state.tool!=='pen'); $('pointPenSettings').classList.toggle('hidden',state.tool!=='pointpen'); $('fadeEraseSettings').classList.toggle('hidden',state.tool!=='fadeerase'); $('stageWrap').classList.toggle('pen-cursor',state.tool==='pen'||state.tool==='pointpen'||state.tool==='fadeerase'); $('stageWrap').classList.toggle('stamp-cursor',state.tool==='stamp');
+    $('penSettings').classList.toggle('hidden',state.tool!=='pen'); $('drawSettings').classList.toggle('hidden',state.tool!=='draw'); $('pointPenSettings').classList.toggle('hidden',state.tool!=='pointpen'); $('fadeEraseSettings').classList.toggle('hidden',state.tool!=='fadeerase'); $('stageWrap').classList.toggle('pen-cursor',state.tool==='pen'||state.tool==='draw'||state.tool==='pointpen'||state.tool==='fadeerase'); $('stageWrap').classList.toggle('stamp-cursor',state.tool==='stamp');
     syncStampUI();
     if(state.tool!=='select') selectionLayer.innerHTML='';
   }
@@ -811,6 +830,11 @@
       $(id).addEventListener('input',()=>{const it=selected();if(!it||it.kind!=='pen')return;it[penMap[id]]=id==='selectedPenColor'?$(id).value:+$(id).value;render();});
       $(id).addEventListener('change',pushHistory);
     });
+    const drawMap={selectedDrawColor:'color',selectedDrawWidth:'width'};
+    Object.keys(drawMap).forEach(id=>{
+      $(id).addEventListener('input',()=>{const it=selected();if(!it||it.kind!=='draw')return;it[drawMap[id]]=id==='selectedDrawColor'?$(id).value:+$(id).value;render();});
+      $(id).addEventListener('change',pushHistory);
+    });
 
     $('addStrokeBtn').addEventListener('click',()=>{const it=selected();if(!it)return;it.strokes=it.strokes||[];it.strokes.unshift({color:'#ffffff',width:3});pushHistory();render();syncInspector();});
     $('strokeList').addEventListener('click',e=>{const row=e.target.closest('.stroke-row'),it=selected();if(!row||!it)return;const i=+row.dataset.i;if(e.target.classList.contains('stroke-up')&&i>0)[it.strokes[i-1],it.strokes[i]]=[it.strokes[i],it.strokes[i-1]];else if(e.target.classList.contains('stroke-down')&&i<it.strokes.length-1)[it.strokes[i+1],it.strokes[i]]=[it.strokes[i],it.strokes[i+1]];else if(e.target.classList.contains('stroke-del'))it.strokes.splice(i,1);else return;pushHistory();render();syncInspector();});
@@ -827,6 +851,21 @@
     const d=mode==='straight'?`M${local[0].x},${local[0].y} L${local[1].x},${local[1].y}`:catmullPath(local);
     const it={id:uid(),kind:'pen',type:'dashedPen',x:minX,y:minY,w,h,rotation:0,d,color:$('penColor').value,width:+$('penWidth').value,dash:+$('penDash').value,gap:+$('penGap').value};
     state.items.push(it);state.selectedId=it.id;pushHistory();render();syncInspector();
+  }
+  function addDrawFromPoints(points,parentId=null,attachMode='free'){
+    if(points.length<2)return; const mode=$('drawCorrection').value; let pts=points;
+    if(mode==='straight') pts=[points[0],points[points.length-1]];
+    else {pts=rdp(points,mode==='curve'?2.5:1.25);pts=chaikin(pts,mode==='curve'?3:2);}
+    const minX=Math.min(...pts.map(p=>p.x)),minY=Math.min(...pts.map(p=>p.y)),maxX=Math.max(...pts.map(p=>p.x)),maxY=Math.max(...pts.map(p=>p.y));
+    const w=Math.max(1,maxX-minX),h=Math.max(1,maxY-minY),local=pts.map(p=>({x:(p.x-minX)/w*100,y:(p.y-minY)/h*100}));
+    const d=mode==='straight'?`M${local[0].x},${local[0].y} L${local[1].x},${local[1].y}`:catmullPath(local);
+    const it={id:uid(),kind:'draw',type:'draw',x:minX,y:minY,w,h,rotation:0,d,color:$('drawColor').value,width:+$('drawWidth').value,strokes:DEFAULT_STROKES(),strokeFx:{softness:0,texture:0},parentId:(parentId&&attachMode!=='free')?parentId:null};
+    if(it.parentId){
+      const idx=state.items.findIndex(x=>x.id===parentId);
+      if(idx>=0){ const insertAt=attachMode==='below'?idx:idx+1; state.items.splice(insertAt,0,it); }
+      else state.items.push(it);
+    } else state.items.push(it);
+    state.selectedId=it.id; pushHistory(); render(); syncInspector();
   }
   function addPointOrEraseFromPoints(points, mode){
     const host=selected();
@@ -941,9 +980,21 @@
       if(state.tool==='pen'){
         pen={points:[p]};$('livePenPath').setAttribute('opacity','1');$('livePenPath').setAttribute('d',`M${p.x},${p.y}`);$('livePenPath').setAttribute('stroke',$('penColor').value);$('livePenPath').setAttribute('stroke-width',$('penWidth').value);$('livePenPath').setAttribute('stroke-dasharray',`${$('penDash').value} ${$('penGap').value}`);stage.setPointerCapture(e.pointerId);return;
       }
+      if(state.tool==='draw'){
+        const sel=selected();
+        const attachMode=$('drawAttachMode').value;
+        const parentId=(sel&&sel.kind==='image'&&attachMode!=='free')?sel.id:null;
+        drawStroke={points:[p], parentId, attachMode};
+        $('livePenPath').setAttribute('opacity','1');
+        $('livePenPath').setAttribute('d',`M${p.x},${p.y}`);
+        $('livePenPath').setAttribute('stroke',$('drawColor').value);
+        $('livePenPath').setAttribute('stroke-width',$('drawWidth').value);
+        $('livePenPath').setAttribute('stroke-dasharray','');
+        stage.setPointerCapture(e.pointerId);return;
+      }
       if(state.tool==='pointpen' || state.tool==='fadeerase'){
         const host=selected();
-        if(!host || host.kind==='pen' || host.kind==='image'){ showToast('먼저 도형 또는 스탬프를 선택해 주세요.'); return; }
+        if(!host || host.kind==='pen' || host.kind==='image' || host.kind==='draw'){ showToast('먼저 도형 또는 스탬프를 선택해 주세요.'); return; }
         paintStroke={mode:state.tool,points:[p]};
         $('livePenPath').setAttribute('opacity','1');
         $('livePenPath').setAttribute('d',`M${p.x},${p.y}`);
@@ -973,7 +1024,11 @@
 
       const target=e.target.closest?.('[data-id]');
       if(target){
-        state.selectedId=target.getAttribute('data-id');const it=selected();gesture={type:'move',id:it.id,start:p,x:it.x,y:it.y};$('stageWrap').classList.add('drag-cursor');stage.setPointerCapture(e.pointerId);render();syncInspector();
+        state.selectedId=target.getAttribute('data-id');
+        const it=selected();
+        const childStarts = it.kind==='image' ? state.items.filter(x=>x.parentId===it.id).map(x=>({id:x.id,x:x.x,y:x.y})) : [];
+        gesture={type:'move',id:it.id,start:p,x:it.x,y:it.y,childStarts};
+        $('stageWrap').classList.add('drag-cursor');stage.setPointerCapture(e.pointerId);render();syncInspector();
       } else {state.selectedId=null;render();syncInspector();}
     });
 
@@ -981,6 +1036,7 @@
       const p=clientToStage(e);lastPointer=p;
       if(state.tool==='stamp'){updateStampGhost(p);return;}
       if(pen){pen.points.push(p);$('livePenPath').setAttribute('d',catmullPath(pen.points));return;}
+      if(drawStroke){drawStroke.points.push(p);$('livePenPath').setAttribute('d',catmullPath(drawStroke.points));return;}
       if(paintStroke){paintStroke.points.push(p);$('livePenPath').setAttribute('d',catmullPath(paintStroke.points));return;}
       if(!gesture)return;
       const it=selected();if(!it)return;
@@ -990,7 +1046,12 @@
         const cx=nx + it.w/2, cy=ny + it.h/2;
         if(Math.abs(cx - W/2) <= threshold){ nx=(W-it.w)/2; state.centerGuides.x=true; }
         if(Math.abs(cy - H/2) <= threshold){ ny=(H-it.h)/2; state.centerGuides.y=true; }
-        it.x=nx; it.y=ny; render();syncInspector();}
+        const dx=nx-it.x, dy=ny-it.y;
+        it.x=nx; it.y=ny;
+        if(it.kind==='image' && gesture.childStarts?.length){
+          gesture.childStarts.forEach(cs=>{ const child=state.items.find(o=>o.id===cs.id); if(child){ child.x=cs.x + (nx-gesture.x); child.y=cs.y + (ny-gesture.y);} });
+        }
+        render();syncInspector();}
 
       if(gesture.type==='resize') resizeGesture(p,e.shiftKey);
       if(gesture.type==='rotate'){
@@ -1004,14 +1065,34 @@
 
     stage.addEventListener('pointerup',e=>{
       if(pen){const pts=pen.points;pen=null;$('livePenPath').setAttribute('opacity','0');addPenFromPoints(pts);}
+      if(drawStroke){const pts=drawStroke.points,parentId=drawStroke.parentId,attachMode=drawStroke.attachMode; drawStroke=null; $('livePenPath').setAttribute('opacity','0'); addDrawFromPoints(pts,parentId,attachMode);}
       if(paintStroke){const pts=paintStroke.points, mode=paintStroke.mode; paintStroke=null; $('livePenPath').setAttribute('opacity','0'); addPointOrEraseFromPoints(pts, mode);}
       if(gesture){gesture=null;$('stageWrap').classList.remove('drag-cursor'); state.centerGuides={x:false,y:false}; pushHistory(); render();}
       try{stage.releasePointerCapture(e.pointerId);}catch{}
     });
   }
 
-  function deleteSelected(){const i=state.items.findIndex(x=>x.id===state.selectedId);if(i<0)return;state.items.splice(i,1);state.selectedId=null;pushHistory();render();syncInspector();}
-  function duplicateSelected(){const it=selected();if(!it)return;const c=clone(it);c.id=uid();c.x+=8;c.y+=8;state.items.push(c);state.selectedId=c.id;pushHistory();render();syncInspector();}
+  function deleteSelected(){
+    const it=selected(); if(!it) return;
+    if(it.kind==='image') state.items = state.items.filter(x=>x.id!==it.id && x.parentId!==it.id);
+    else state.items = state.items.filter(x=>x.id!==it.id);
+    state.selectedId=null; pushHistory(); render(); syncInspector();
+  }
+  function duplicateSelected(){
+    const it=selected(); if(!it) return;
+    if(it.kind==='image'){
+      const newId=uid();
+      const c=clone(it); c.id=newId; c.x+=8; c.y+=8;
+      const idx=state.items.findIndex(x=>x.id===it.id);
+      state.items.splice(idx+1,0,c);
+      const children=state.items.filter(x=>x.parentId===it.id).map(x=>{const cc=clone(x); cc.id=uid(); cc.parentId=newId; cc.x+=8; cc.y+=8; return cc;});
+      children.forEach((child,offset)=>state.items.splice(idx+2+offset,0,child));
+      state.selectedId=newId;
+    } else {
+      const c=clone(it); c.id=uid(); c.x+=8; c.y+=8; state.items.push(c); state.selectedId=c.id;
+    }
+    pushHistory(); render(); syncInspector();
+  }
   function moveLayer(dir){const i=state.items.findIndex(x=>x.id===state.selectedId);if(i<0)return;const j=clamp(i+dir,0,state.items.length-1);if(i===j)return;const [it]=state.items.splice(i,1);state.items.splice(j,0,it);pushHistory();render();}
   function align(action){const it=selected();if(!it)return;if(action==='centerX')it.x=(W-it.w)/2;if(action==='centerY')it.y=(H-it.h)/2;if(action==='centerBoth'){it.x=(W-it.w)/2;it.y=(H-it.h)/2;}if(action==='cover'){const r=Math.max(W/it.w,H/it.h);it.w*=r;it.h*=r;it.x=(W-it.w)/2;it.y=(H-it.h)/2;}pushHistory();render();syncInspector();}
 
@@ -1087,7 +1168,7 @@
     $('canvasBgColor').oninput=e=>{state.bg=e.target.value;render();}; $('canvasBgColor').onchange=pushHistory; $('transparentBg').onchange=e=>{state.transparent=e.target.checked;pushHistory();render();};
     $('gridToggle').onchange=e=>{state.grid=e.target.checked;render();}; $('safeToggle').onchange=e=>{state.safe=e.target.checked;render();}; $('snapToggle').onchange=e=>{state.snap=e.target.checked;};
     $('zoomRange').oninput=e=>{state.zoom=+e.target.value/100;applyZoom();}; $('zoomOutBtn').onclick=()=>{state.zoom=clamp(state.zoom-.25,.75,3);applyZoom();}; $('zoomInBtn').onclick=()=>{state.zoom=clamp(state.zoom+.25,.75,3);applyZoom();}; $('fitBtn').onclick=fitStage;
-    $('toolModeGroup').onclick=e=>{const b=e.target.closest('[data-tool]');if(!b)return;state.tool=b.dataset.tool;updateToolButtons();render();const msg=state.tool==='pen'?'미리보기에서 드래그해 점선을 그리세요.':state.tool==='pointpen'?'선택된 도형 안쪽에 포인트를 그리세요.':state.tool==='fadeerase'?'선택된 도형의 포인트를 부드럽게 지우세요.':'오브젝트를 클릭해 이동하거나 손잡이로 크기를 조절하세요.';setStatus(msg);};
+    $('toolModeGroup').onclick=e=>{const b=e.target.closest('[data-tool]');if(!b)return;state.tool=b.dataset.tool;updateToolButtons();render();const msg=state.tool==='pen'?'미리보기에서 드래그해 점선을 그리세요.':state.tool==='draw'?'미리보기에서 자유롭게 그림을 그리세요. 선택한 사진이 있으면 위/아래 레이어로 자동 연결할 수 있습니다.':state.tool==='pointpen'?'선택된 도형 안쪽에 포인트를 그리세요.':state.tool==='fadeerase'?'선택된 도형의 포인트를 부드럽게 지우세요.':'오브젝트를 클릭해 이동하거나 손잡이로 크기를 조절하세요.';setStatus(msg);};
     $('exitStampToolBtn').onclick=()=>{state.tool='select';updateToolButtons();render();setStatus('선택 모드로 돌아왔습니다.');};
 
     const stampInputs={stampFillColor:'fill',stampStrokeColor:'stroke',stampStrokeWidth:'strokeWidth',stampSize:'size',stampRotation:'rotation'};
