@@ -5,7 +5,7 @@
   <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="color-scheme" content="light" />
-  <title>Cute Badge Background Studio v1.5</title>
+  <title>Cute Badge Background Studio v1.6</title>
   <link rel="stylesheet" href="./style.css" />
 </head>
 <body>
@@ -15,7 +15,7 @@
         <div class="brand-mark" aria-hidden="true">✦</div>
         <div>
           <strong>Cute Badge Background Studio</strong>
-          <span>293 × 164 썸네일 배경 · v1.5</span>
+          <span>293 × 164 썸네일 배경 · v1.6</span>
         </div>
       </div>
       <div class="top-actions">
@@ -215,6 +215,7 @@
             <div class="quick-align">
               <button data-align="centerX" class="ghost mini">가로 중앙</button>
               <button data-align="centerY" class="ghost mini">세로 중앙</button>
+              <button data-align="centerBoth" class="ghost mini">정중앙</button>
               <button data-align="cover" class="ghost mini">캔버스 덮기</button>
             </div>
             <p class="small-copy">크기 조절은 미리보기에서 직접 하세요. 모서리 손잡이를 드래그하고 Shift를 누르면 원래 비율을 유지합니다.</p>
@@ -318,10 +319,11 @@
                 <label>투명도<input id="patternOpacity" type="range" min="0" max="100" value="20" /></label>
               </div>
               <div class="two-col">
-                <label>크기<input id="patternSize" type="range" min="0.1" max="40" step="0.1" value="8" /></label>
-                <label>간격<input id="patternGap" type="range" min="0" max="80" step="0.1" value="8" /></label>
+                <label>크기<input id="patternSize" type="range" min="0.01" max="40" step="0.01" value="8" /></label>
+                <label>간격<input id="patternGap" type="range" min="0" max="80" step="0.05" value="8" /></label>
               </div>
               <div class="two-col">
+                <label>밀도<input id="patternDensity" type="range" min="1" max="10" step="0.1" value="1" /></label>
                 <label>영역 X<input id="patternX" type="range" min="-60" max="140" step="0.5" value="10" /></label>
                 <label>영역 Y<input id="patternY" type="range" min="-60" max="140" step="0.5" value="10" /></label>
               </div>
@@ -343,7 +345,7 @@
               </div>
               <div class="two-col">
                 <label>블러 폭<input id="patternBlurSpan" type="range" min="1" max="80" step="0.5" value="12" /></label>
-                <label>자연스러운 연결용 팁<span class="inline-note">패턴은 일부 영역에만 배치할 수 있고, 블러 방향을 주면 해당 시작 줄만 자연스럽게 이어집니다.</span></label>
+                <label>자연스러운 연결용 팁<span class="inline-note">크기를 매우 작게 줄이고 밀도를 높이면 더 촘촘하게 많이 배치할 수 있습니다.</span></label>
               </div>
             </div>
 

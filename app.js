@@ -147,7 +147,7 @@
       strokes:DEFAULT_STROKES(),
       strokeFx:{softness:0, texture:0},
       shade:{enabled:false,color:'#655c76',opacity:18,angle:135},
-      pattern:{mode:'none',color:'#5f5a70',opacity:18,size:8,gap:8,x:10,y:10,w:80,h:80,blur:0,blurDir:'none',blurSpan:12},
+      pattern:{mode:'none',color:'#5f5a70',opacity:18,size:8,gap:8,density:1,x:10,y:10,w:80,h:80,blur:0,blurDir:'none',blurSpan:12},
       innerLine:{enabled:false,color:'#ffffff',width:1.5,dash:5,gap:4,inset:6,offsetX:0,offsetY:0,scaleX:1,scaleY:1},
       shadow:{enabled:false,color:'#6c6175',opacity:18,x:2,y:3,blur:2},
       glow:{enabled:false,color:'#ffffff',opacity:38,spread:1.6,blur:4},
@@ -171,7 +171,7 @@
       out.strokes=Array.isArray(out.strokes)?out.strokes.map(s=>({color:s.color||'#ffffff',width:Math.max(0,+s.width||0)})):DEFAULT_STROKES();
       out.strokeFx={softness:0, texture:0, ...out.strokeFx};
       out.shade={enabled:false,color:'#655c76',opacity:18,angle:135,...out.shade};
-      out.pattern={mode:'none',color:'#5f5a70',opacity:18,size:8,gap:8,x:10,y:10,w:80,h:80,blur:0,blurDir:'none',blurSpan:12,...out.pattern};
+      out.pattern={mode:'none',color:'#5f5a70',opacity:18,size:8,gap:8,density:1,x:10,y:10,w:80,h:80,blur:0,blurDir:'none',blurSpan:12,...out.pattern};
       out.innerLine={enabled:false,color:'#ffffff',width:1.5,dash:5,gap:4,inset:6,offsetX:0,offsetY:0,scaleX:1,scaleY:1,...out.innerLine};
       out.shadow={enabled:false,color:'#6c6175',opacity:18,x:2,y:3,blur:2,...out.shadow};
       out.glow={enabled:false,color:'#ffffff',opacity:38,spread:1.6,blur:4,...out.glow};
@@ -317,7 +317,7 @@
     base.x=21;base.y=17;base.w=251;base.h=133;base.fillMode=(p.shape==='brush'||p.shape==='paintcloud'||p.shape==='handblob'||p.shape==='wobblyrect')?'pastel':'linear';
     base.fillA=p.colors[0];base.fillB=p.colors[1];base.gradAngle=25;
     base.strokes=[{color:'#ffffff',width:4.8},{color:p.colors[2],width:1.8}];
-    base.pattern={mode:p.pattern,color:p.colors[2],opacity:17,size:7,gap:8,x:10,y:10,w:80,h:80,blur:0,blurDir:'none',blurSpan:12};
+    base.pattern={mode:p.pattern,color:p.colors[2],opacity:17,size:7,gap:8,density:1,x:10,y:10,w:80,h:80,blur:0,blurDir:'none',blurSpan:12};
     base.innerLine.enabled=!!p.inner;base.innerLine.color='#ffffff';base.innerLine.width=1.25;base.innerLine.dash=5;base.innerLine.gap=4;base.innerLine.inset=6;
     base.shadow={enabled:true,color:p.colors[2],opacity:12,x:1.5,y:2.2,blur:1.8};
     state.items.push(base);
@@ -358,19 +358,20 @@
   function createPatternDef(item){
     if(!item.pattern||item.pattern.mode==='none') return null;
     const id='pat_'+item.id;
-    const size=Math.max(.5,+item.pattern.size||8), gap=Math.max(0,+item.pattern.gap||8), step=size+gap;
+    const size=Math.max(.05,+item.pattern.size||8), gap=Math.max(0,+item.pattern.gap||8), density=Math.max(.2,+item.pattern.density||1);
+    const step=Math.max(.08,(size+gap)/density);
     const color=item.pattern.color, op=(+item.pattern.opacity||20)/100;
     const aspectFix = item.w && item.h ? (item.w / item.h) : 1;
     const p=svgEl('pattern',{id,patternUnits:'userSpaceOnUse',width:step,height:step,patternTransform:`scale(1 ${aspectFix})`});
-    if(item.pattern.mode==='dots') p.append(svgEl('circle',{cx:step/2,cy:step/2,r:Math.max(.35,size*.22),fill:color,opacity:op}));
-    if(item.pattern.mode==='stripes'){ p.setAttribute('patternTransform',`scale(1 ${aspectFix}) rotate(35)`); p.append(svgEl('line',{x1:0,y1:0,x2:0,y2:step*1.5,stroke:color,'stroke-width':Math.max(.35,size*.24),opacity:op})); }
-    if(item.pattern.mode==='grid') p.append(svgEl('path',{d:`M0 0 H${step} M0 0 V${step}`,stroke:color,'stroke-width':Math.max(.25,size*.08),opacity:op,fill:'none'}));
+    if(item.pattern.mode==='dots') p.append(svgEl('circle',{cx:step/2,cy:step/2,r:Math.max(.04,size*.22),fill:color,opacity:op}));
+    if(item.pattern.mode==='stripes'){ p.setAttribute('patternTransform',`scale(1 ${aspectFix}) rotate(35)`); p.append(svgEl('line',{x1:0,y1:0,x2:0,y2:step*1.5,stroke:color,'stroke-width':Math.max(.04,size*.24),opacity:op})); }
+    if(item.pattern.mode==='grid') p.append(svgEl('path',{d:`M0 0 H${step} M0 0 V${step}`,stroke:color,'stroke-width':Math.max(.03,size*.08),opacity:op,fill:'none'}));
     if(item.pattern.mode==='sparkles') p.append(svgEl('path',{d:`M${step/2} ${step*.15} C${step*.53} ${step*.4} ${step*.62} ${step*.47} ${step*.85} ${step*.5} C${step*.62} ${step*.53} ${step*.53} ${step*.6} ${step/2} ${step*.85} C${step*.47} ${step*.6} ${step*.38} ${step*.53} ${step*.15} ${step*.5} C${step*.38} ${step*.47} ${step*.47} ${step*.4} ${step/2} ${step*.15} Z`,fill:color,opacity:op}));
     if(item.pattern.mode==='tinyhearts') p.append(svgEl('path',{d:`M${step*.5} ${step*.78} C${step*.42} ${step*.67} ${step*.2} ${step*.55} ${step*.24} ${step*.34} C${step*.27} ${step*.2} ${step*.44} ${step*.2} ${step*.5} ${step*.35} C${step*.56} ${step*.2} ${step*.73} ${step*.2} ${step*.76} ${step*.34} C${step*.8} ${step*.55} ${step*.58} ${step*.67} ${step*.5} ${step*.78} Z`,fill:color,opacity:op}));
     if(item.pattern.mode==='confetti'){
-      p.append(svgEl('line',{x1:step*.18,y1:step*.24,x2:step*.42,y2:step*.42,stroke:color,'stroke-width':Math.max(.45,size*.14),opacity:op,'stroke-linecap':'round'}));
-      p.append(svgEl('line',{x1:step*.68,y1:step*.6,x2:step*.86,y2:step*.38,stroke:color,'stroke-width':Math.max(.45,size*.14),opacity:op,'stroke-linecap':'round'}));
-      p.append(svgEl('circle',{cx:step*.5,cy:step*.8,r:Math.max(.35,size*.08),fill:color,opacity:op}));
+      p.append(svgEl('line',{x1:step*.18,y1:step*.24,x2:step*.42,y2:step*.42,stroke:color,'stroke-width':Math.max(.05,size*.14),opacity:op,'stroke-linecap':'round'}));
+      p.append(svgEl('line',{x1:step*.68,y1:step*.6,x2:step*.86,y2:step*.38,stroke:color,'stroke-width':Math.max(.05,size*.14),opacity:op,'stroke-linecap':'round'}));
+      p.append(svgEl('circle',{cx:step*.5,cy:step*.8,r:Math.max(.04,size*.08),fill:color,opacity:op}));
     }
     addDef(p); return `url(#${id})`;
   }
@@ -586,6 +587,8 @@
       for(let y=0;y<=H;y+=10) gridLayer.append(svgEl('line',{x1:0,y1:y,x2:W,y2:y,class:'grid-line'}));
     }
     if(state.safe) guideLayer.append(svgEl('rect',{x:8,y:8,width:W-16,height:H-16,rx:6,class:'safe-guide'}));
+    if(state.centerGuides?.x) guideLayer.append(svgEl('line',{x1:W/2,y1:0,x2:W/2,y2:H,class:'center-guide'}));
+    if(state.centerGuides?.y) guideLayer.append(svgEl('line',{x1:0,y1:H/2,x2:W,y2:H/2,class:'center-guide'}));
   }
 
   function renderSelection(){
@@ -678,7 +681,7 @@
 
     $('shadeEnabled').checked=it.shade.enabled; $('shadeControls').classList.toggle('hidden',!it.shade.enabled); $('shadeColor').value=it.shade.color; $('shadeOpacity').value=it.shade.opacity; $('shadeAngle').value=it.shade.angle; $('shadeAngleValue').textContent=it.shade.angle+'°';
     $('patternMode').value=it.pattern.mode; $('patternControls').classList.toggle('hidden',it.pattern.mode==='none'); $('patternColor').value=it.pattern.color; $('patternOpacity').value=it.pattern.opacity;
-    $('patternSize').value=it.pattern.size; $('patternGap').value=it.pattern.gap; $('patternX').value=it.pattern.x; $('patternY').value=it.pattern.y; $('patternW').value=it.pattern.w; $('patternH').value=it.pattern.h; $('patternBlur').value=it.pattern.blur; $('patternBlurDir').value=it.pattern.blurDir||'none'; $('patternBlurSpan').value=it.pattern.blurSpan||12;
+    $('patternSize').value=it.pattern.size; $('patternGap').value=it.pattern.gap; $('patternDensity').value=it.pattern.density||1; $('patternX').value=it.pattern.x; $('patternY').value=it.pattern.y; $('patternW').value=it.pattern.w; $('patternH').value=it.pattern.h; $('patternBlur').value=it.pattern.blur; $('patternBlurDir').value=it.pattern.blurDir||'none'; $('patternBlurSpan').value=it.pattern.blurSpan||12;
     $('innerLineEnabled').checked=it.innerLine.enabled; $('innerLineControls').classList.toggle('hidden',!it.innerLine.enabled); $('innerLineColor').value=it.innerLine.color; $('innerLineWidth').value=it.innerLine.width; $('innerLineDash').value=it.innerLine.dash; $('innerLineGap').value=it.innerLine.gap; $('innerLineInset').value=it.innerLine.inset; $('innerLineOffsetX').value=it.innerLine.offsetX; $('innerLineOffsetY').value=it.innerLine.offsetY; $('innerLineScaleX').value=it.innerLine.scaleX; $('innerLineScaleY').value=it.innerLine.scaleY;
     $('shadowEnabled').checked=it.shadow.enabled; $('shadowControls').classList.toggle('hidden',!it.shadow.enabled); $('shadowColor').value=it.shadow.color; $('shadowOpacity').value=it.shadow.opacity; $('shadowX').value=it.shadow.x; $('shadowY').value=it.shadow.y; $('shadowBlur').value=it.shadow.blur;
     $('glowEnabled').checked=it.glow?.enabled; $('glowControls').classList.toggle('hidden',!it.glow?.enabled); $('glowColor').value=it.glow?.color || '#ffffff'; $('glowOpacity').value=it.glow?.opacity ?? 38; $('glowSpread').value=it.glow?.spread ?? 1.6; $('glowBlur').value=it.glow?.blur ?? 4;
@@ -729,8 +732,8 @@
     $('shadeAngle').addEventListener('input',()=>{const it=selected();if(!it)return;it.shade.angle=+$('shadeAngle').value;$('shadeAngleValue').textContent=it.shade.angle+'°';render();}); $('shadeAngle').addEventListener('change',pushHistory);
 
     $('patternMode').addEventListener('change',()=>{nestedUpdate('pattern','mode',$('patternMode').value);pushHistory();syncInspector();});
-    ['patternColor','patternOpacity','patternSize','patternGap','patternX','patternY','patternW','patternH','patternBlur','patternBlurSpan'].forEach(id=>{
-      $(id).addEventListener('input',()=>{const it=selected();if(!it||!it.pattern)return;const map={patternColor:'color',patternOpacity:'opacity',patternSize:'size',patternGap:'gap',patternX:'x',patternY:'y',patternW:'w',patternH:'h',patternBlur:'blur',patternBlurSpan:'blurSpan'};it.pattern[map[id]]=id==='patternColor'?$(id).value:+$(id).value;render();});
+    ['patternColor','patternOpacity','patternSize','patternGap','patternDensity','patternX','patternY','patternW','patternH','patternBlur','patternBlurSpan'].forEach(id=>{
+      $(id).addEventListener('input',()=>{const it=selected();if(!it||!it.pattern)return;const map={patternColor:'color',patternOpacity:'opacity',patternSize:'size',patternGap:'gap',patternDensity:'density',patternX:'x',patternY:'y',patternW:'w',patternH:'h',patternBlur:'blur',patternBlurSpan:'blurSpan'};it.pattern[map[id]]=id==='patternColor'?$(id).value:+$(id).value;render();});
       $(id).addEventListener('change',pushHistory);
     });
     $('patternBlurDir').addEventListener('change',()=>{const it=selected();if(!it||!it.pattern)return;it.pattern.blurDir=$('patternBlurDir').value;pushHistory();render();syncInspector();});
@@ -943,7 +946,14 @@
       if(paintStroke){paintStroke.points.push(p);$('livePenPath').setAttribute('d',catmullPath(paintStroke.points));return;}
       if(!gesture)return;
       const it=selected();if(!it)return;
-      if(gesture.type==='move'){it.x=snap(gesture.x+p.x-gesture.start.x);it.y=snap(gesture.y+p.y-gesture.start.y);render();syncInspector();}
+      if(gesture.type==='move'){
+        let nx=snap(gesture.x+p.x-gesture.start.x), ny=snap(gesture.y+p.y-gesture.start.y);
+        const threshold=4; state.centerGuides={x:false,y:false};
+        const cx=nx + it.w/2, cy=ny + it.h/2;
+        if(Math.abs(cx - W/2) <= threshold){ nx=(W-it.w)/2; state.centerGuides.x=true; }
+        if(Math.abs(cy - H/2) <= threshold){ ny=(H-it.h)/2; state.centerGuides.y=true; }
+        it.x=nx; it.y=ny; render();syncInspector();}
+
       if(gesture.type==='resize') resizeGesture(p,e.shiftKey);
       if(gesture.type==='rotate'){
         const a=Math.atan2(p.y-gesture.center.y,p.x-gesture.center.x);let deg=gesture.init.rotation+(a-gesture.startAngle)*180/Math.PI;if(e.shiftKey)deg=Math.round(deg/15)*15;it.rotation=Math.round(deg*10)/10;render();syncInspector();
@@ -957,7 +967,7 @@
     stage.addEventListener('pointerup',e=>{
       if(pen){const pts=pen.points;pen=null;$('livePenPath').setAttribute('opacity','0');addPenFromPoints(pts);}
       if(paintStroke){const pts=paintStroke.points, mode=paintStroke.mode; paintStroke=null; $('livePenPath').setAttribute('opacity','0'); addPointOrEraseFromPoints(pts, mode);}
-      if(gesture){gesture=null;$('stageWrap').classList.remove('drag-cursor');pushHistory();}
+      if(gesture){gesture=null;$('stageWrap').classList.remove('drag-cursor'); state.centerGuides={x:false,y:false}; pushHistory(); render();}
       try{stage.releasePointerCapture(e.pointerId);}catch{}
     });
   }
@@ -965,7 +975,7 @@
   function deleteSelected(){const i=state.items.findIndex(x=>x.id===state.selectedId);if(i<0)return;state.items.splice(i,1);state.selectedId=null;pushHistory();render();syncInspector();}
   function duplicateSelected(){const it=selected();if(!it)return;const c=clone(it);c.id=uid();c.x+=8;c.y+=8;state.items.push(c);state.selectedId=c.id;pushHistory();render();syncInspector();}
   function moveLayer(dir){const i=state.items.findIndex(x=>x.id===state.selectedId);if(i<0)return;const j=clamp(i+dir,0,state.items.length-1);if(i===j)return;const [it]=state.items.splice(i,1);state.items.splice(j,0,it);pushHistory();render();}
-  function align(action){const it=selected();if(!it)return;if(action==='centerX')it.x=(W-it.w)/2;if(action==='centerY')it.y=(H-it.h)/2;if(action==='cover'){const r=Math.max(W/it.w,H/it.h);it.w*=r;it.h*=r;it.x=(W-it.w)/2;it.y=(H-it.h)/2;}pushHistory();render();syncInspector();}
+  function align(action){const it=selected();if(!it)return;if(action==='centerX')it.x=(W-it.w)/2;if(action==='centerY')it.y=(H-it.h)/2;if(action==='centerBoth'){it.x=(W-it.w)/2;it.y=(H-it.h)/2;}if(action==='cover'){const r=Math.max(W/it.w,H/it.h);it.w*=r;it.h*=r;it.x=(W-it.w)/2;it.y=(H-it.h)/2;}pushHistory();render();syncInspector();}
 
   function cleanSvgForExport(){
     const cloneSvg=stage.cloneNode(true);
@@ -1011,8 +1021,8 @@
   }
   function saveProject(){
     captureCurrentPage();
-    const data={app:'Cute Badge Background Studio',version:'1.5',canvas:{width:W,height:H},pages,activePageIndex,ui:{grid:state.grid,safe:state.safe,snap:state.snap}};
-    downloadBlob(new Blob([JSON.stringify(data,null,2)],{type:'application/json;charset=utf-8'}),'cute-badge-project-v1.5.json');
+    const data={app:'Cute Badge Background Studio',version:'1.6',canvas:{width:W,height:H},pages,activePageIndex,ui:{grid:state.grid,safe:state.safe,snap:state.snap}};
+    downloadBlob(new Blob([JSON.stringify(data,null,2)],{type:'application/json;charset=utf-8'}),'cute-badge-project-v1.6.json');
   }
   function openProject(file){
     const r=new FileReader();r.onload=()=>{try{const d=JSON.parse(r.result);
