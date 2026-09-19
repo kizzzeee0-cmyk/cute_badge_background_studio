@@ -5,7 +5,7 @@
   <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="color-scheme" content="light" />
-  <title>Cute Badge Background Studio v1.1</title>
+  <title>Cute Badge Background Studio v1.2</title>
   <link rel="stylesheet" href="./style.css" />
 </head>
 <body>
@@ -15,7 +15,7 @@
         <div class="brand-mark" aria-hidden="true">✦</div>
         <div>
           <strong>Cute Badge Background Studio</strong>
-          <span>293 × 164 썸네일 배경 · v1.1</span>
+          <span>293 × 164 썸네일 배경 · v1.2</span>
         </div>
       </div>
       <div class="top-actions">
@@ -24,29 +24,40 @@
         <button id="saveProjectBtn" class="ghost">프로젝트 저장</button>
         <label class="button ghost file-button">프로젝트 열기<input id="openProjectInput" type="file" accept="application/json,.json" hidden /></label>
         <button id="exportSvgBtn" class="ghost">SVG 저장</button>
-        <button id="exportPngBtn" class="primary">PNG 저장</button>
+        <button id="exportPngBtn" class="ghost">현재 PNG</button>
+        <button id="exportAllZipBtn" class="primary">모든 페이지 ZIP</button>
       </div>
     </header>
 
     <main class="workspace">
       <aside class="panel left-panel">
         <section class="panel-section">
+          <div class="section-title-row"><h2>페이지</h2><span class="hint">여러 시안을 한 번에 관리</span></div>
+          <div class="object-actions">
+            <button id="addPageBtn" class="ghost mini">＋ 페이지 추가</button>
+            <button id="duplicatePageBtn" class="ghost mini">복제</button>
+            <button id="deletePageBtn" class="danger mini">삭제</button>
+          </div>
+          <div id="pageList" class="page-list"></div>
+        </section>
+
+        <section class="panel-section">
           <div class="section-title-row">
             <h2>배경 프리셋</h2>
-            <span class="hint">한국어 이름·색상표 수정</span>
+            <span class="hint">같은 프리셋을 다시 누르면 토글 해제</span>
           </div>
           <div id="presetList" class="preset-grid"></div>
         </section>
 
         <section class="panel-section">
           <div class="section-title-row"><h2>도형</h2><span class="hint">클릭하면 중앙에 추가</span></div>
-          <p class="small-copy no-top">선택 후 미리보기의 손잡이를 끌어서 크기를 바로 조절할 수 있어요.</p>
+          <p class="small-copy no-top">손그림 느낌 도형을 포함했습니다. 선택 후 미리보기 손잡이로 크기를 바로 조절하세요.</p>
           <div id="shapeList" class="asset-grid"></div>
         </section>
 
         <section class="panel-section">
           <div class="section-title-row"><h2>스탬프</h2><span id="stampToolBadge" class="badge hidden">찍기 모드</span></div>
-          <p class="small-copy no-top">스탬프를 먼저 고르고 아래에서 색·획·크기를 정한 뒤, 미리보기에서 원하는 곳을 클릭하세요.</p>
+          <p class="small-copy no-top">스탬프를 선택하고 색·획·크기를 먼저 정한 뒤, 미리보기에서 원하는 위치를 클릭해 찍으세요.</p>
           <div id="stampList" class="asset-grid"></div>
           <div id="stampSettings" class="stamp-settings hidden">
             <div class="stamp-tool-head">
@@ -136,6 +147,10 @@
             <label>배경색<input id="canvasBgColor" type="color" value="#ffffff" /></label>
             <label class="check-label inline-check"><input id="transparentBg" type="checkbox" /> 투명</label>
           </div>
+          <div class="image-import-row">
+            <label class="button ghost file-button">이미지 추가<input id="imageInput" type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden /></label>
+            <span class="hint">PNG/JPG/WebP/GIF 정지 프레임</span>
+          </div>
         </section>
 
         <section id="emptyInspector" class="empty-inspector">
@@ -198,8 +213,12 @@
 
           <section id="strokeSection" class="panel-section">
             <div class="section-title-row"><h2>다중 획</h2><button id="addStrokeBtn" class="ghost mini">＋ 획 추가</button></div>
-            <p class="small-copy">목록의 위쪽이 가장 바깥쪽입니다. 각 행의 두께는 실제로 보이는 띠의 두께이며, 색 변경이 즉시 미리보기에 반영됩니다.</p>
+            <p class="small-copy">목록의 위쪽이 가장 바깥쪽입니다. 색상 변경이 즉시 미리보기에 반영됩니다.</p>
             <div id="strokeList" class="stroke-list"></div>
+            <div class="two-col compact-top">
+              <label>테두리 소프트<input id="strokeSoftness" type="number" min="0" max="8" step="0.2" value="0" /></label>
+              <label>테두리 질감<input id="strokeTexture" type="number" min="0" max="8" step="0.2" value="0" /></label>
+            </div>
           </section>
 
           <section id="lineStampSection" class="panel-section hidden">
@@ -249,7 +268,22 @@
                 <label>색상<input id="patternColor" type="color" value="#6a5d7a" /></label>
                 <label>투명도<input id="patternOpacity" type="number" min="0" max="100" value="20" /></label>
               </div>
-              <label>크기/간격 <span id="patternScaleValue" class="value-readout">10</span><input id="patternScale" type="range" min="4" max="24" value="10" /></label>
+              <div class="two-col">
+                <label>크기<input id="patternSize" type="number" min="2" max="30" value="8" /></label>
+                <label>간격<input id="patternGap" type="number" min="0" max="40" value="8" /></label>
+              </div>
+              <div class="two-col">
+                <label>영역 X<input id="patternX" type="number" min="-60" max="140" value="10" /></label>
+                <label>영역 Y<input id="patternY" type="number" min="-60" max="140" value="10" /></label>
+              </div>
+              <div class="two-col">
+                <label>영역 가로<input id="patternW" type="number" min="1" max="180" value="80" /></label>
+                <label>영역 세로<input id="patternH" type="number" min="1" max="180" value="80" /></label>
+              </div>
+              <div class="two-col">
+                <label>블러<input id="patternBlur" type="number" min="0" max="12" step="0.2" value="0" /></label>
+                <label>자연스러운 연결용 팁<span class="inline-note">크기를 작게, 간격을 넓게 설정 가능</span></label>
+              </div>
             </div>
 
             <label class="check-label effect-check"><input id="innerLineEnabled" type="checkbox" /> 안쪽 스티치 / 점선 테두리</label>
@@ -262,6 +296,14 @@
                 <label>점<input id="innerLineDash" type="number" min="1" max="20" value="5" /></label>
                 <label>간격<input id="innerLineGap" type="number" min="1" max="20" value="4" /></label>
                 <label>안쪽<input id="innerLineInset" type="number" min="2" max="22" value="6" /></label>
+              </div>
+              <div class="two-col">
+                <label>X 이동<input id="innerLineOffsetX" type="number" min="-30" max="30" step="0.5" value="0" /></label>
+                <label>Y 이동<input id="innerLineOffsetY" type="number" min="-30" max="30" step="0.5" value="0" /></label>
+              </div>
+              <div class="two-col">
+                <label>가로 배율<input id="innerLineScaleX" type="number" min="0.3" max="2" step="0.05" value="1" /></label>
+                <label>세로 배율<input id="innerLineScaleY" type="number" min="0.3" max="2" step="0.05" value="1" /></label>
               </div>
             </div>
 
@@ -285,6 +327,7 @@
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
   </div>
 
+  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
   <script src="./app.js"></script>
 </body>
 </html>
